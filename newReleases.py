@@ -2,7 +2,6 @@
 # coding=utf-8
 
 import datetime
-import email.message
 import os
 import smtplib
 import sys
@@ -10,8 +9,8 @@ import sys
 import bs4
 import requests
 
-from config import password
 from config import email
+from config import password
 from config import smtpLibary
 from config import smtpPort
 
