@@ -5,11 +5,12 @@ import datetime
 import os
 import smtplib
 import sys
+import email.message
 
 import bs4
 import requests
 
-from config import email
+from config import emailAddr
 from config import password
 from config import smtpLibary
 from config import smtpPort
@@ -60,42 +61,37 @@ add_to_log(" Info - Starting Metacritic Crawl....")
 
 # get the reviews
 url = 'http://www.metacritic.com/browse/albums/release-date/new-releases/date'
+url = 'https://www.metacritic.com/browse/albums/release-date/coming-soon/date'
 res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
 res.raise_for_status()
 soup = bs4.BeautifulSoup(res.text, "html.parser")
 
-entries = soup.select('.product_wrap')
+# entries = soup.select('.product_wrap')
+table = soup.select('.musicTable')
+entries = table[0].findChildren('tr')
 
 listOfNewReleases = []
 newReleasesFile = open("newReleases.txt", "a+")
 
+releaseDate = ""
+
 for entry in entries:
     album = ""
     artist = ""
-    releaseDate = ""
-    score = ""
-    divs = entry.find_all('div')
-    for div in divs:
-        if 'product_title' in div.get('class'):
-            album = div.getText()
-            album = album.encode('ascii', errors='ignore').decode('ascii')
-        if 'product_score' in div.get('class'):
-            score = div.getText()
-            score = score.encode('ascii', errors='ignore').decode('ascii')
-        if div.find_all('li'):
-            items = div.find_all('li')
-            for item in items:
-                if 'product_artist' in item.get('class'):
-                    artist = item.find('span', {"class": "data"}).getText()
-                    artist = artist.encode('ascii', errors='ignore').decode('ascii')
-                if 'release_date' in item.get('class'):
-                    releaseDate = item.find('span', {"class": "data"}).getText()
-                    releaseDate = releaseDate.encode('ascii', errors='ignore').decode('ascii')
+    if entry.has_attr('class'):
+        releaseDate = entry.findChildren('th')[0].getText(strip = True)
+    else:
+        tds = entry.findChildren('td')
+        for td in tds:
+            if td.has_attr('class') and 'artistName' in td.get('class'):
+                artist = td.getText(strip = True)
+            if td.has_attr('class') and 'albumTitle' in td.get('class'):
+                album = td.getText(strip = True)
 
-    fileRelease = make_release(artist, album, releaseDate)
+        fileRelease = make_release(artist, album, releaseDate)
 
-    if str(fileRelease) not in open('newReleases.txt').read():
-        listOfNewReleases.append(fileRelease)
+        if str(fileRelease) not in open('newReleases.txt').read():
+            listOfNewReleases.append(fileRelease)
 
 emailContent = """
     <html>
@@ -126,8 +122,8 @@ emailContent += "</tbody></table></body></html>"
 subject = "New releases as of " + datetime.datetime.now().strftime("%m-%d-%y %H:%M%p")
 msg = email.message.Message()
 msg['SUBJECT'] = subject
-msg['From'] = email
-msg['To'] = email
+msg['From'] = emailAddr
+msg['To'] = emailAddr
 msg.add_header('Content-Type', 'text/html')
 msg.set_payload(emailContent)
 
@@ -144,7 +140,7 @@ smtpObj.ehlo()
 smtpObj.starttls()
 
 try:
-    smtpObj.login(email, password)
+    smtpObj.login(emailAddr, password)
 except smtplib.SMTPAuthenticationError as e:
     add_to_log(" ERROR - " + str(e.args))
     smtpObj.quit()
@@ -156,7 +152,7 @@ message = msg.as_string().encode('utf-8')
 if len(listOfNewReleases) > 0:
     try:
         # smtpObj.sendmail('shicks255@yahoo.com', 'shicks255@yahoo.com', message)
-        smtpObj.sendmail(email, email, message)
+        smtpObj.sendmail(emailAddr, emailAddr, message)
     except smtplib.SMTPSenderRefused as e:
         add_to_log(" ERROR - " + str(e.args))
         smtpObj.quit()
