@@ -151,7 +151,6 @@ message = msg.as_string().encode('utf-8')
 
 if len(listOfNewReleases) > 0:
     try:
-        # smtpObj.sendmail('shicks255@yahoo.com', 'shicks255@yahoo.com', message)
         smtpObj.sendmail(emailAddr, emailAddr, message)
     except smtplib.SMTPSenderRefused as e:
         add_to_log(" ERROR - " + str(e.args))
